@@ -1,0 +1,20 @@
+{
+  "name": "quickprint-kiosk-server",
+  "version": "1.0.0",
+  "description": "Backend for the QuickPrint self-service printing kiosk (upload, Razorpay payment, print queue).",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "razorpay": "^2.9.4",
+    "better-sqlite3": "^11.3.0"
+  }
+}
