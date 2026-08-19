@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>QuickPrint Kiosk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<style>
+  :root{
+    --paper:#FAF7EF;
+    --paper-dim:#F1ECDF;
+    --ink:#201D18;
+    --ink-soft:#6b6558;
+    --line:#CFC8B4;
+    --stamp-red:#B8391F;
+    --stamp-green:#2F5233;
+    --radius:2px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      repeating-linear-gradient(135deg, rgba(0,0,0,0.015) 0 2px, transparent 2px 4px),
+      var(--paper-dim);
+    color:var(--ink);
+    font-family:'IBM Plex Mono', monospace;
+    min-height:100vh;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding:32px 16px 80px;
+  }
+  .receipt{
+    width:100%;
+    max-width:420px;
+    background:var(--paper);
+    box-shadow:0 1px 0 var(--line), 0 18px 40px -20px rgba(0,0,0,0.35);
+    position:relative;
+    padding:0 0 28px;
+  }
+  .receipt::after{
+    content:"";
+    position:absolute;
+    left:0; right:0; bottom:-10px; height:10px;
+    background:
+      linear-gradient(135deg, var(--paper) 50%, transparent 50%) 0 0/14px 14px,
+      linear-gradient(-135deg, var(--paper) 50%, transparent 50%) 0 0/14px 14px;
+    background-repeat:repeat-x;
+  }
+  header{
+    padding:28px 26px 18px;
+    border-bottom:1px dashed var(--line);
+    text-align:center;
+  }
+  .brand{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:22px;
+    letter-spacing:0.5px;
+  }
+  .brand span{color:var(--stamp-red);}
+  .tagline{
+    font-size:11px;
+    color:var(--ink-soft);
+    letter-spacing:2px;
+    text-transform:uppercase;
+    margin-top:6px;
+  }
+  .steps{
+    display:flex;
+    justify-content:space-between;
+    padding:14px 26px;
+    font-size:10px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    border-bottom:1px dashed var(--line);
+  }
+  .steps b{color:var(--stamp-red);}
+  .step-num{color:var(--ink-soft);}
+  .step.active .step-num{color:var(--stamp-red); font-weight:600;}
+  section{padding:22px 26px;}
+  section.hidden{display:none;}
+  h2{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:14px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    margin:0 0 14px;
+  }
+  .dropzone{
+    border:1.5px dashed var(--line);
+    border-radius:var(--radius);
+    padding:30px 16px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .dropzone:hover, .dropzone.drag{
+    border-color:var(--stamp-red);
+    background:rgba(184,57,31,0.04);
+  }
+  .dropzone svg{width:28px;height:28px;stroke:var(--ink-soft);margin-bottom:8px;}
+  .dropzone p{margin:0;font-size:12px;color:var(--ink-soft);}
+  .dropzone .fname{color:var(--ink);font-weight:600;font-size:13px;}
+  input[type=file]{display:none;}
+  .row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:9px 0;
+    font-size:13px;
+  }
+  .row label{color:var(--ink-soft);}
+  select, .stepper{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    background:transparent;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:6px 8px;
+    color:var(--ink);
+  }
+  .stepper{display:flex;align-items:center;gap:0;padding:0;overflow:hidden;}
+  .stepper button{
+    width:28px;height:28px;
+    border:none;background:var(--paper-dim);
+    font-size:15px;cursor:pointer;color:var(--ink);
+  }
+  .stepper span{width:32px;text-align:center;font-size:13px;}
+  .toggle{display:flex;gap:6px;}
+  .toggle button{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    padding:6px 10px;
+    border:1px solid var(--line);
+    background:transparent;
+    border-radius:var(--radius);
+    cursor:pointer;
+    color:var(--ink-soft);
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+  }
+  .toggle button.active{
+    border-color:var(--stamp-red);
+    color:var(--stamp-red);
+    background:rgba(184,57,31,0.06);
+  }
+  .divider{border-top:1px dashed var(--line);margin:16px 0;}
+  .total-row{
+    display:flex;justify-content:space-between;align-items:baseline;
+    font-family:'Space Grotesk', sans-serif;
+    margin-top:4px;
+  }
+  .total-row .amt{font-size:24px;font-weight:700;}
+  .total-row .label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--ink-soft);}
+  button.primary{
+    width:100%;
+    margin-top:18px;
+    padding:13px;
+    background:var(--ink);
+    color:var(--paper);
+    border:none;
+    border-radius:var(--radius);
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:13px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    cursor:pointer;
+  }
+  button.primary:disabled{opacity:0.4;cursor:not-allowed;}
+  button.primary:not(:disabled):hover{background:var(--stamp-red);}
+  .status{
+    text-align:center;
+    padding:10px 0 0;
+  }
+  .stamp{
+    display:inline-block;
+    border:2.5px solid var(--stamp-green);
+    color:var(--stamp-green);
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:15px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    padding:8px 18px;
+    border-radius:4px;
+    transform:rotate(-4deg);
+    margin:10px 0 16px;
+  }
+  .order-id{font-size:11px;color:var(--ink-soft);letter-spacing:1px;}
+  .print-progress{
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:14px;
+    text-align:center;
+  }
+  .dots span{animation:blink 1.4s infinite;opacity:0;}
+  .dots span:nth-child(2){animation-delay:.2s;}
+  .dots span:nth-child(3){animation-delay:.4s;}
+  @keyframes blink{0%,100%{opacity:0;}40%{opacity:1;}}
+  .error{color:var(--stamp-red);font-size:11px;margin-top:8px;}
+  .config-warning{
+    background:rgba(184,57,31,0.07);
+    border:1px solid var(--stamp-red);
+    color:var(--stamp-red);
+    font-size:10.5px;
+    padding:8px 10px;
+    border-radius:var(--radius);
+    margin:0 26px 16px;
+    line-height:1.5;
+  }
+</style>
+</head>
+<body>
+
+<div class="receipt">
+  <header>
+    <div class="brand">QUICK<span>PRINT</span></div>
+    <div class="tagline">Scan · Upload · Pay · Print</div>
+  </header>
+
+  <div class="steps">
+    <div class="step active" id="stepLabel1"><span class="step-num">01</span> FILE</div>
+    <div class="step" id="stepLabel2"><span class="step-num">02</span> OPTIONS</div>
+    <div class="step" id="stepLabel3"><span class="step-num">03</span> PAY</div>
+    <div class="step" id="stepLabel4"><span class="step-num">04</span> PRINT</div>
+  </div>
+
+  <!-- STEP 1: UPLOAD -->
+  <section id="step1">
+    <h2>Upload your file</h2>
+    <div class="dropzone" id="dropzone">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
+      <p id="dzText">Tap to choose a file<br>PDF, DOCX, JPG, PNG · up to 20MB</p>
+    </div>
+    <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+    <div class="error" id="uploadError"></div>
+    <button class="primary" id="toStep2" disabled>Continue</button>
+  </section>
+
+  <!-- STEP 2: OPTIONS -->
+  <section id="step2" class="hidden">
+    <h2>Print options</h2>
+    <div class="row">
+      <label>Copies</label>
+      <div class="stepper">
+        <button id="dec">–</button><span id="copies">1</span><button id="inc">+</button>
+      </div>
+    </div>
+    <div class="row">
+      <label>Colour</label>
+      <div class="toggle">
+        <button id="bwBtn" class="active">B&amp;W</button>
+        <button id="colorBtn">Colour</button>
+      </div>
+    </div>
+    <div class="row">
+      <label>Paper size</label>
+      <select id="paperSize">
+        <option value="A4">A4</option>
+        <option value="A3">A3</option>
+        <option value="Letter">Letter</option>
+      </select>
+    </div>
+    <div class="row">
+      <label>Sides</label>
+      <select id="sides">
+        <option value="single">Single-sided</option>
+        <option value="double">Double-sided</option>
+      </select>
+    </div>
+    <div class="divider"></div>
+    <div class="total-row">
+      <span class="label">Total</span>
+      <span class="amt">₹<span id="totalAmt">5</span></span>
+    </div>
+    <button class="primary" id="toStep3">Continue to pay</button>
+  </section>
+
+  <!-- STEP 3: PAY -->
+  <section id="step3" class="hidden">
+    <h2>Confirm &amp; pay</h2>
+    <div class="row"><label>File</label><span id="reviewFile">—</span></div>
+    <div class="row"><label>Copies</label><span id="reviewCopies">—</span></div>
+    <div class="row"><label>Colour</label><span id="reviewColor">—</span></div>
+    <div class="row"><label>Size</label><span id="reviewSize">—</span></div>
+    <div class="divider"></div>
+    <div class="total-row">
+      <span class="label">Amount payable</span>
+      <span class="amt">₹<span id="payAmt">5</span></span>
+    </div>
+    <button class="primary" id="payBtn">Pay with UPI</button>
+    <div class="error" id="payError"></div>
+  </section>
+
+  <!-- STEP 4: PRINTING / DONE -->
+  <section id="step4" class="hidden">
+    <div class="status">
+      <div class="stamp">Paid</div>
+      <div class="order-id">ORDER #<span id="orderId">—</span></div>
+      <div class="print-progress" id="printProgress">
+        Sending to printer<span class="dots"><span>.</span><span>.</span><span>.</span></span>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ====================== CONFIG — EDIT BEFORE GOING LIVE ====================== */
+const API_BASE = "https://bijapuri-print-kiosk.onrender.com";
+const RAZORPAY_KEY_ID = "rzp_test_TRbgvUuciyV2WU";
+const PRICE_PER_PAGE_BW = 2;     // ₹ per page, black & white
+const PRICE_PER_PAGE_COLOR = 8;  // ₹ per page, colour
+/* =============================================================================== */
+
+let state = { file: null, copies: 1, color: "bw", size: "A4", sides: "single" };
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const dzText = document.getElementById('dzText');
+const toStep2 = document.getElementById('toStep2');
+
+dropzone.addEventListener('click', () => fileInput.click());
+['dragover','dragenter'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
+['dragleave','drop'].forEach(evt => dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
+dropzone.addEventListener('drop', e => { if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+function handleFile(file){
+  const errEl = document.getElementById('uploadError');
+  errEl.textContent = "";
+  if (file.size > 20 * 1024 * 1024){
+    errEl.textContent = "File is larger than 20MB.";
+    return;
+  }
+  state.file = file;
+  dzText.innerHTML = `<span class="fname">${file.name}</span><br>${(file.size/1024/1024).toFixed(2)} MB — tap to change`;
+  toStep2.disabled = false;
+}
+
+function goTo(step){
+  [1,2,3,4].forEach(n => {
+    document.getElementById('step'+n).classList.toggle('hidden', n !== step);
+    document.getElementById('stepLabel'+n).classList.toggle('active', n === step);
+  });
+}
+
+toStep2.addEventListener('click', () => goTo(2));
+
+// ---- Options step ----
+const copiesEl = document.getElementById('copies');
+document.getElementById('inc').onclick = () => { state.copies = Math.min(state.copies+1, 99); copiesEl.textContent = state.copies; updatePrice(); };
+document.getElementById('dec').onclick = () => { state.copies = Math.max(state.copies-1, 1); copiesEl.textContent = state.copies; updatePrice(); };
+
+const bwBtn = document.getElementById('bwBtn');
+const colorBtn = document.getElementById('colorBtn');
+bwBtn.onclick = () => { state.color = 'bw'; bwBtn.classList.add('active'); colorBtn.classList.remove('active'); updatePrice(); };
+colorBtn.onclick = () => { state.color = 'color'; colorBtn.classList.add('active'); bwBtn.classList.remove('active'); updatePrice(); };
+
+document.getElementById('paperSize').onchange = e => { state.size = e.target.value; };
+document.getElementById('sides').onchange = e => { state.sides = e.target.value; };
+
+function updatePrice(){
+  // NOTE: page-count detection needs a real backend (PDF parsing). Demo assumes 1 page per copy.
+  const perPage = state.color === 'bw' ? PRICE_PER_PAGE_BW : PRICE_PER_PAGE_COLOR;
+  const total = perPage * state.copies;
+  document.getElementById('totalAmt').textContent = total;
+  document.getElementById('payAmt').textContent = total;
+  return total;
+}
+updatePrice();
+
+document.getElementById('toStep3').addEventListener('click', () => {
+  document.getElementById('reviewFile').textContent = state.file ? state.file.name : '—';
+  document.getElementById('reviewCopies').textContent = state.copies;
+  document.getElementById('reviewColor').textContent = state.color === 'bw' ? 'Black & white' : 'Colour';
+  document.getElementById('reviewSize').textContent = state.size + ' · ' + (state.sides === 'single' ? 'Single-sided' : 'Double-sided');
+  updatePrice();
+  goTo(3);
+});
+
+// ---- Pay step ----
+document.getElementById('payBtn').addEventListener('click', async () => {
+  const payError = document.getElementById('payError');
+  payError.textContent = "";
+  const amount = updatePrice();
+
+  try {
+    // 1. Upload file + create order on your backend
+    const form = new FormData();
+    form.append('file', state.file);
+    form.append('copies', state.copies);
+    form.append('color', state.color);
+    form.append('size', state.size);
+    form.append('sides', state.sides);
+    form.append('amount', amount);
+
+    const uploadRes = await fetch(`${API_BASE}/api/create-order`, { method: 'POST', body: form });
+    if (!uploadRes.ok) throw new Error('Could not create order — check backend connection.');
+    const order = await uploadRes.json(); // { orderId, razorpayOrderId, amount, currency }
+
+    // 2. Open Razorpay checkout
+    const rzp = new Razorpay({
+      key: RAZORPAY_KEY_ID,
+      amount: order.amount * 100, // paise
+      currency: order.currency || "INR",
+      name: "QuickPrint Kiosk",
+      description: `Order #${order.orderId}`,
+      order_id: order.razorpayOrderId,
+      handler: async function (response) {
+        // 3. Verify payment on backend, which then queues the print job
+        const verifyRes = await fetch(`${API_BASE}/api/verify-payment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: order.orderId,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_signature: response.razorpay_signature
+          })
+        });
+        if (!verifyRes.ok){
+          payError.textContent = "Payment could not be verified. Contact the counter.";
+          return;
+        }
+        document.getElementById('orderId').textContent = order.orderId;
+        goTo(4);
+        pollPrintStatus(order.orderId);
+      },
+      modal: { ondismiss: function(){ payError.textContent = "Payment cancelled."; } },
+      theme: { color: "#201D18" }
+    });
+    rzp.on('payment.failed', function (resp){
+      payError.textContent = "Payment failed: " + resp.error.description;
+    });
+    rzp.open();
+
+  } catch (err) {
+    payError.textContent = err.message || "Something went wrong. Try again.";
+  }
+});
+
+async function pollPrintStatus(orderId){
+  const progressEl = document.getElementById('printProgress');
+  try {
+    for (let i = 0; i < 20; i++){
+      const res = await fetch(`${API_BASE}/api/print-status/${orderId}`);
+      const data = await res.json();
+      if (data.status === 'printed'){
+        progressEl.innerHTML = "✔ Sent to printer — collect your copies at the counter.";
+        return;
+      }
+      if (data.status === 'failed'){
+        progressEl.innerHTML = "⚠ Printing failed — please show this order ID at the counter.";
+        return;
+      }
+      await new Promise(r => setTimeout(r, 2000));
+    }
+    progressEl.innerHTML = "Still processing — please check with the counter.";
+  } catch (e) {
+    progressEl.innerHTML = "Could not reach the printer service — show this order ID at the counter.";
+  }
+}
+</script>
+</body>
+</html>
